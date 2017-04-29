@@ -100,6 +100,7 @@ void setFlapSpeed(int speed);
 int main(void)
 {   
     //hello
+    //testing
     PPSInput(1, INT4, RPB4);
     PPSInput(3, INT2, RPA4);
     
