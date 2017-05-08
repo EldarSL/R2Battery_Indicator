@@ -101,10 +101,6 @@ volatile float BRY_DATA[4] = {0};
 /** P R I V A T E  P R O T O T Y P E S ***************************************/
 static void InitializeSystem(void);
 
-void initPWM(void);
-
-void setFlapSpeed(int speed);
-
 /******************************************************************************
  * Function:        void main(void)
  *
@@ -169,15 +165,15 @@ ConfigIntTimer2(T2_INT_ON | T2_INT_PRIOR_5);
 void __ISR(_TIMER_2_VECTOR, ipl5) _Timer2_InterruptHandler(void){
     mT2ClearIntFlag();
     
-    BRY_VOLTAGE = ReadADC10(0)*2.048/1023; // channel 4
-    BRY_CURRENT = ReadADC10(1)*2.048/1023; // channel 5
+    BRY_VOLTAGE = ReadADC10(0)*2.041/1023; // channel 4
+    BRY_CURRENT = ReadADC10(1)*2.041/1023; // channel 5
     
-    BRY_AMP_HRS = pow(10,BRY_VOLTAGE * LOG_REG_X_COEF + LOG_REG_INTCPT);
+    BRY_AMP_HRS = pow(10,V_READ) * LOG_REG_X_COEF + LOG_REG_INTCPT;
     
     V_READ = BRY_VOLTAGE / V_DIVIDER;
     I_READ = BRY_CURRENT*10;
-    AMP_HRS = BRY_AMP_HRS / 1000;
-    PCNT_BRY = BRY_VOLTAGE/V_BRY_MAX * 100;
+    AMP_HRS = BRY_AMP_HRS;
+    PCNT_BRY = 100* (V_READ / V_BRY_MAX) ;
     
     BRY_DATA[0] = V_READ;
     BRY_DATA[1] = I_READ;
