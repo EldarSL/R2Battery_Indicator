@@ -108,30 +108,22 @@
     #define mInitSwitch3()      TRISBbits.TRISB9=1;
     #define mInitAllSwitches()  mInitSwitch2();mInitSwitch3();
     #define sw2                 PORTBbits.RB8
-    #define sw3                 PORTBbits.RB9
-
-    #define limitSwitch2()      TRISBbits.TRISB4=1;
-    #define limitSwitch3()      TRISAbits.TRISA4=1;
-    #define LS1                 PORTBbits.RB4
-    #define LS2                 PORTAbits.RA4
-
-    #define EnablePullUpA(bits) CNPDACLR=bits; CNPUASET=bits;
-    #define EnablePullUpB(bits) CNPDBCLR=bits; CNPUBSET=bits;
+    #define sw3                 PORTBbits.RB9    
 
     /** I/O pin definitions ********************************************/
     #define INPUT_PIN 1
     #define OUTPUT_PIN 0
 
-    #define BAUD_RATE                   115200
-    #define LENGTH_IN_ASCII
-    #define MAX_LENGTH                  9
+    #define BAUD_RATE                   9600
+    //#define LENGTH_IN_ASCII
+    #define MAX_LENGTH                  30
     #define MAXLENGTH_SOURCE            MAX_LENGTH
     #define MAXLENGTH_DESTINATION       MAX_LENGTH
     #define MAXLENGTH_TRANSACTION       MAX_LENGTH
     #define MAXLENGTH_PAYLOAD           MAX_LENGTH
     #define MAXLENGTH_CHECKSUM          MAX_LENGTH
 
-    #define WHOAMI                      "FLAP"
+    #define WHOAMI                      "BATTERY_INDICATOR"
 
 
 

@@ -13,4 +13,5 @@ sources/../includes/usb/usb.h  \
  sources/../includes/HardwareProfile.h  \
 sources/../includes/Compiler.h  \
  sources/../includes/usb/usb_config.h  \
- sources/../includes/usb/usb_device.h 
+ sources/../includes/usb/usb_device.h  \
+sources/../includes/R2Protocol.h 

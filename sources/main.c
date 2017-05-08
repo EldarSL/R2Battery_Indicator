@@ -50,11 +50,13 @@
 #include "../includes/usb/usb.h"
 #include "../includes/usb/usb_function_cdc.h"
 #include "../includes/HardwareProfile.h"
+#include "plib.h"
 
 #pragma config FNOSC = PRIPLL, POSCMOD = HS, FSOSCEN = OFF, OSCIOFNC = OFF
 #pragma config FPLLIDIV = DIV_2, FPLLMUL = MUL_20, FPBDIV = DIV_1, FPLLODIV = DIV_2
 #pragma config FWDTEN = OFF, JTAGEN = OFF, ICESEL = ICS_PGx3
 #pragma config UPLLIDIV = DIV_2, UPLLEN = ON
+
 
 /** I N C L U D E S **********************************************************/
 
@@ -62,6 +64,9 @@
 #include "../includes/Compiler.h"
 #include "../includes/usb/usb_config.h"
 #include "../includes/usb/usb_device.h"
+#include "stdint.h"
+#include "math.h"
+#include "../includes/R2Protocol.h"
 
 /** C O M M A N D S ********************************************************/
 #define CMD_OPEN    "O"
@@ -74,6 +79,25 @@
 #define SERVO_RUN_SPEED     100
 #define SERVO_OPEN  (SERVO_REST + SERVO_RUN_SPEED)
 #define SERVO_CLOSE (SERVO_REST - SERVO_RUN_SPEED)
+
+#define LOG_REG_X_COEF 0.673113683
+#define LOG_REG_INTCPT -13.18264525
+#define V_DIVIDER 0.058823529
+#define V_BRY_MAX 26.27
+
+
+volatile float BRY_VOLTAGE;
+volatile float BRY_CURRENT;
+volatile float BRY_AMP_HRS;
+
+volatile float V_READ;
+volatile float I_READ;
+volatile float AMP_HRS;
+volatile float PCNT_BRY;
+
+volatile float BRY_DATA[4] = {0};
+
+
 /** P R I V A T E  P R O T O T Y P E S ***************************************/
 static void InitializeSystem(void);
 
@@ -97,15 +121,83 @@ void setFlapSpeed(int speed);
  * Note:            None
  *****************************************************************************/
 
+void ADC_Config(){
+    //configure and enable the ADC
+    CloseADC10(); //ensure ADC is off before setting the configuration
+
+     //define setup parameters for OpenADC10
+    #define PARAM1 ADC_MODULE_ON | ADC_FORMAT_INTG | ADC_CLK_AUTO | \
+    ADC_AUTO_SAMPLING_ON
+
+    //second set of parameters needs to be switched to voltage reference when one
+    //when one is available (on the PCB, not on the breadboard)
+    #define PARAM2 ADC_VREF_EXT_AVSS | ADC_OFFSET_CAL_DISABLE | ADC_SCAN_ON | \
+        ADC_SAMPLES_PER_INT_2 | ADC_ALT_BUF_OFF | ADC_ALT_INPUT_OFF
+
+    #define PARAM3 ADC_CONV_CLK_INTERNAL_RC | ADC_SAMPLE_TIME_12
+
+    #define PARAM4 ENABLE_AN4_ANA | ENABLE_AN5_ANA
+
+    #define PARAM5 SKIP_SCAN_AN0 | SKIP_SCAN_AN1 | SKIP_SCAN_AN2 | SKIP_SCAN_AN3 | \
+    SKIP_SCAN_AN6 | SKIP_SCAN_AN7 | SKIP_SCAN_AN8 | SKIP_SCAN_AN9 | SKIP_SCAN_AN10 | \
+    SKIP_SCAN_AN11 | SKIP_SCAN_AN12 | SKIP_SCAN_AN13 | SKIP_SCAN_AN14 | \
+    SKIP_SCAN_AN15
+
+//     configure to sample AN4 & AN5
+     SetChanADC10(ADC_CH0_NEG_SAMPLEA_NVREF);
+
+    OpenADC10(PARAM1, PARAM2, PARAM3, PARAM4, PARAM5);
+
+    EnableADC10(); // Enable the ADC
+
+    while (! mAD1ClearIntFlag() ) { } // wait for the first conversion to complete
+}
+
+void DVO_Config() {
+mPORTBSetPinsDigitalOut(BIT_7 | BIT_8 | BIT_9 | BIT_13 | BIT_14);
+mPORTBClearBits(BIT_7 | BIT_8 | BIT_9 | BIT_13 | BIT_14); //turns off all bits
+mPORTBSetBits(BIT_14); //turns on Bit 7 RED LED in this case
+}
+
+void TIMER_Config(){
+OpenTimer2(T2_ON | T2_PS_1_64, 62500);
+ConfigIntTimer2(T2_INT_ON | T2_INT_PRIOR_5);
+
+}
+
+void __ISR(_TIMER_2_VECTOR, ipl5) _Timer2_InterruptHandler(void){
+    mT2ClearIntFlag();
+    
+    BRY_VOLTAGE = ReadADC10(0)*2.048/1023; // channel 4
+    BRY_CURRENT = ReadADC10(1)*2.048/1023; // channel 5
+    
+    BRY_AMP_HRS = pow(10,BRY_VOLTAGE * LOG_REG_X_COEF + LOG_REG_INTCPT);
+    
+    V_READ = BRY_VOLTAGE / V_DIVIDER;
+    I_READ = BRY_CURRENT*10;
+    AMP_HRS = BRY_AMP_HRS / 1000;
+    PCNT_BRY = BRY_VOLTAGE/V_BRY_MAX * 100;
+    
+    BRY_DATA[0] = V_READ;
+    BRY_DATA[1] = I_READ;
+    BRY_DATA[2] = AMP_HRS;
+    BRY_DATA[3] = PCNT_BRY;
+    
+
+//    mAMP_HRS = (uint64_t) floor(BRY_AMP_HRS);
+//    mV_READ = (uint64_t) floor(1000 * BRY_VOLTAGE / V_DIVIDER);
+//    
+//    
+//    mI_READ = (uint64_t) floor(1000 * BRY_CURRENT*10);
+//    PCNT_BRY = (uint64_t) floor(BRY_VOLTAGE/V_BRY_MAX);
+    
+}
+
 int main(void)
 {   
-    //hello
-    //testing
-    PPSInput(1, INT4, RPB4);
-    PPSInput(3, INT2, RPA4);
-    
-    ConfigINT4(EXT_INT_ENABLE | FALLING_EDGE_INT | EXT_INT_PRI_2 );
-    ConfigINT2(EXT_INT_ENABLE | FALLING_EDGE_INT | EXT_INT_PRI_1 );
+    DVO_Config(); 
+    ADC_Config();
+    TIMER_Config();
     
     InitializeSystem();
 
@@ -133,35 +225,81 @@ int main(void)
 
         OpenTimer1(T1_ON | T1_PS_1_256, 0xFFFF);
         
-        char sourceBuffer[30] = {0};
-        char transactionBuffer[30] = {0};
-        char payloadBuffer[30] = {0};
-        char checksumBuffer[30] = {0};
+        
+        
+        struct R2ProtocolPacket comm_packet;
+        uint8_t packet_data[32] = {0};
+        comm_packet.data_len = 32;
+        comm_packet.data = packet_data;
         
 		// Application-specific tasks.
 		// Application related code may be added here, or in the ProcessIO() function.
-        int result = ProcessIO(sourceBuffer, payloadBuffer, checksumBuffer, transactionBuffer);
-        /* the buffers now contain relevant information;
-         * they are updated if result == 1; otherwise, it's old info
-         */
+        int result = ProcessIO(&comm_packet);
         
-        char readBuffer[100];
         if (result){
             // new data available
             
-//            print out data obtained:
-            /*sprintf(readBuffer,
-                "S: %s\n\rT: %s\n\rP: %s\n\rK: %s\n\r",
-                    sourceBuffer, transactionBuffer,
-                        payloadBuffer, checksumBuffer);
-            putsUSBUSART(readBuffer);*/
-            if (strncmp(payloadBuffer, CMD_OPEN, 5)==0){
-                    setFlapSpeed(SERVO_OPEN);
-            }
-            else if (strncmp(payloadBuffer, CMD_CLOSE, 5)==0){
-                    setFlapSpeed(SERVO_CLOSE);
-            }
+            if (strncmp(comm_packet.data, "Q", 5) == 0){
+                // Got "Q"
+                mPORTBSetBits(BIT_14 | BIT_13 | BIT_9);
+                
+                //sprintf(buf, "mV_READ: %f\n\r", V_READ);
+                //putsUSBUSART(buf);
+                
+                char buf[256];
+                char source[256] = "BATTERY";
+                
+                char bry_reads[4] = {'V','I','A','L'};
+                //char voltage[256] = "VOLTAGE";
+                //char current[256] = "CURRENT";
+                //char level[256] = "LEVEL";
+                //char mAhrs[256] = "MILIAMPHOURS";
+                // try char*
+                char readings[256] =" ";
+                
+                int i;
+                
+                BRY_DATA[0] = 26.7;
+                BRY_DATA[2] = 9.8;
+                BRY_DATA[1] = 15555;
+                BRY_DATA[3] = 13.3;
+                
+                
+                
+                for(i=0; i<4; i++){
+                    
+                    sprintf(buf, "%.1f", BRY_DATA[i]);
+                    int newlength = strlen(buf);
+                    struct R2ProtocolPacket info_packet = {
+                    "BATTERY", "NUC", "", newlength, buf, ""
+                    };
+                    
+                    readings[0] = bry_reads[i];
+                    char* srcptr = &info_packet.id;
+                    sprintf(srcptr, "%s", readings);
+                    uint8_t output[256];
+                    int len = R2ProtocolEncode(&info_packet, output, 256);
+                    
+                    if (len >= 0) {
+                        putUSBUSART(output, len);
+                                                
+                        CDCTxService();
+                    } else {// ending if - encoding was correct
+                        putsUSBUSART("FAILED SENDING!\n\r");
+                    } 
+                                        
+                }// ending for
+                
+            } // ending if request was for us
+            else{
+                putsUSBUSART("Garbage!\n\r");
+            } // ending else - where request wasn't for us
+            
+            
         
+        } //ending if - where there was a message
+        else{
+//            putsUSBUSART("hello world!\n\r");
         }
         
     }//end while
@@ -235,43 +373,4 @@ static void InitializeSystem(void)
 
     USBDeviceInit();	//usb_device.c.  Initializes USB module SFRs and firmware
     					//variables to known states.
-    initPWM();
-    
-    EnablePullUpA(BIT_4);
-    
-    EnablePullUpB(BIT_4);
 }//end InitializeSystem
-
-
-/** EOF main.c *************************************************/
-
-void initPWM(void){
-    
-    PPSOutput(2, RPB5, OC2);        // pin 14
-    
-    mPORTBSetPinsDigitalOut( BIT_5 );
-    
-    // pwm mode, fault pin disabled, timer 2 time base
-    OC2CON = OCCON_ON | OCCON_OCM1 | OCCON_OCM2;
-    
-    // 16-bit timer 2, no interrupt, 1:16 prescale, PR2=50000 -> period = 20ms
-    OpenTimer2(T2_32BIT_MODE_OFF | T2_INT_OFF | T2_PS_1_16 | T2_ON, PERIOD-1);   
-    
-    setFlapSpeed(SERVO_REST);
-}
-
-void setFlapSpeed(int speed){
-    if (speed < SERVO_MIN) speed = SERVO_MIN;
-    if (speed > SERVO_MAX) speed = SERVO_MAX;
-    SetDCOC2PWM(speed);
-}
-
-void __ISR(_EXTERNAL_2_VECTOR, ipl1) StopOpen(void) {
-    mINT2ClearIntFlag();
-    setFlapSpeed(SERVO_REST);
-}
-
-void __ISR(_EXTERNAL_4_VECTOR, ipl2) StopClose(void) {
-    mINT4ClearIntFlag();
-    setFlapSpeed(SERVO_REST);
-}
