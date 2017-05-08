@@ -244,22 +244,11 @@ int main(void)
                 mPORTBSetBits(BIT_14 | BIT_13 | BIT_9);
                 
                 ConfigIntTimer2(T2_INT_OFF | T2_INT_PRIOR_5);
-                
-                //sprintf(buf, "mV_READ: %f\n\r", V_READ);
-                //putsUSBUSART(buf);
-                
-                char buf[256];
-                char source[256] = "BATTERY";
-                
-                char bry_reads[4] = {'V','I','A','L'};
-                char readings[256] =" ";
-                
-                int i;
-                
-                BRY_DATA[0] = 26.7;
-                BRY_DATA[1] = 9.8;
-                BRY_DATA[2] = 15555;
-                BRY_DATA[3] = 13.3;
+                                
+                BRY_DATA[0] = ReadADC10(0); // direct input for testing
+                BRY_DATA[1] = ReadADC10(1); // direct input for testing
+                //BRY_DATA[2] = 15555; // pre-set value for testing USB
+                //BRY_DATA[3] = 13.3; // pre-set value for testing USB
                 
                 char single_buf[256];
                 sprintf(single_buf, "V:%.1f| I:%.1f| A:%.1f| L:%.1f",
