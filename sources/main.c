@@ -243,6 +243,8 @@ int main(void)
                 // Got "Q"
                 mPORTBSetBits(BIT_14 | BIT_13 | BIT_9);
                 
+                ConfigIntTimer2(T2_INT_OFF | T2_INT_PRIOR_5);
+                
                 //sprintf(buf, "mV_READ: %f\n\r", V_READ);
                 //putsUSBUSART(buf);
                 
@@ -250,52 +252,40 @@ int main(void)
                 char source[256] = "BATTERY";
                 
                 char bry_reads[4] = {'V','I','A','L'};
-                //char voltage[256] = "VOLTAGE";
-                //char current[256] = "CURRENT";
-                //char level[256] = "LEVEL";
-                //char mAhrs[256] = "MILIAMPHOURS";
-                // try char*
                 char readings[256] =" ";
                 
                 int i;
                 
                 BRY_DATA[0] = 26.7;
-                BRY_DATA[2] = 9.8;
-                BRY_DATA[1] = 15555;
+                BRY_DATA[1] = 9.8;
+                BRY_DATA[2] = 15555;
                 BRY_DATA[3] = 13.3;
                 
+                char single_buf[256];
+                sprintf(single_buf, "V:%.1f| I:%.1f| A:%.1f| L:%.1f",
+                        BRY_DATA[0], BRY_DATA[1], BRY_DATA[2], BRY_DATA[3]);
                 
-                
-                for(i=0; i<4; i++){
-                    
-                    sprintf(buf, "%.1f", BRY_DATA[i]);
-                    int newlength = strlen(buf);
+                int newlength = strlen(single_buf);
                     struct R2ProtocolPacket info_packet = {
-                    "BATTERY", "NUC", "", newlength, buf, ""
+                    "BATTERY", "NUC", "", newlength, single_buf, ""
                     };
                     
-                    readings[0] = bry_reads[i];
-                    char* srcptr = &info_packet.id;
-                    sprintf(srcptr, "%s", readings);
-                    uint8_t output[256];
-                    int len = R2ProtocolEncode(&info_packet, output, 256);
-                    
-                    if (len >= 0) {
+                uint8_t output[256];
+                int len = R2ProtocolEncode(&info_packet, output, 256);
+                
+                if (len >= 0) {
                         putUSBUSART(output, len);
-                                                
                         CDCTxService();
                     } else {// ending if - encoding was correct
                         putsUSBUSART("FAILED SENDING!\n\r");
-                    } 
-                                        
-                }// ending for
+                    }
                 
             } // ending if request was for us
             else{
                 putsUSBUSART("Garbage!\n\r");
             } // ending else - where request wasn't for us
             
-            
+            ConfigIntTimer2(T2_INT_ON | T2_INT_PRIOR_5);
         
         } //ending if - where there was a message
         else{

@@ -123,7 +123,7 @@
     #define MAXLENGTH_PAYLOAD           MAX_LENGTH
     #define MAXLENGTH_CHECKSUM          MAX_LENGTH
 
-    #define WHOAMI                      "BATTERY_INDICATOR"
+    #define WHOAMI                      "BATTERY"
 
 
 
