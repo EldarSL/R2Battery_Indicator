@@ -196,10 +196,9 @@ void __ISR(_TIMER_2_VECTOR, ipl5) _Timer2_InterruptHandler(void){
 int main(void)
 {   
     DVO_Config(); 
-    ADC_Config();
     TIMER_Config();
-    
     InitializeSystem();
+    ADC_Config();
 
     #if defined(USB_INTERRUPT)
         USBDeviceAttach();
@@ -243,10 +242,10 @@ int main(void)
                 // Got "Q"
                 mPORTBSetBits(BIT_14 | BIT_13 | BIT_9);
                 
-                ConfigIntTimer2(T2_INT_OFF | T2_INT_PRIOR_5);
+//                ConfigIntTimer2(T2_INT_OFF | T2_INT_PRIOR_5);
                                 
-                BRY_DATA[0] = ReadADC10(0); // direct input for testing
-                BRY_DATA[1] = ReadADC10(1); // direct input for testing
+                //BRY_DATA[0] = ReadADC10(0); // direct input for testing
+                //BRY_DATA[1] = ReadADC10(1); // direct input for testing
                 //BRY_DATA[2] = 15555; // pre-set value for testing USB
                 //BRY_DATA[3] = 13.3; // pre-set value for testing USB
                 
@@ -274,7 +273,7 @@ int main(void)
                 putsUSBUSART("Garbage!\n\r");
             } // ending else - where request wasn't for us
             
-            ConfigIntTimer2(T2_INT_ON | T2_INT_PRIOR_5);
+//            ConfigIntTimer2(T2_INT_ON | T2_INT_PRIOR_5);
         
         } //ending if - where there was a message
         else{
