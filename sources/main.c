@@ -153,7 +153,7 @@ void ADC_Config(){
 void DVO_Config() {
 mPORTBSetPinsDigitalOut(BIT_7 | BIT_8 | BIT_9 | BIT_13 | BIT_14);
 mPORTBClearBits(BIT_7 | BIT_8 | BIT_9 | BIT_13 | BIT_14); //turns off all bits
-mPORTBSetBits(BIT_14); //turns on Bit 7 RED LED in this case
+//mPORTBSetBits(BIT_14); //turns on Bit 7 RED LED in this case
 }
 
 void TIMER_Config(){
@@ -165,15 +165,15 @@ ConfigIntTimer2(T2_INT_ON | T2_INT_PRIOR_5);
 void __ISR(_TIMER_2_VECTOR, ipl5) _Timer2_InterruptHandler(void){
     mT2ClearIntFlag();
     
-    BRY_VOLTAGE = ReadADC10(0)*2.041/1023; // channel 4
-    BRY_CURRENT = ReadADC10(1)*2.041/1023; // channel 5
+    BRY_VOLTAGE = ReadADC10(0)*2.041/1023.0; // channel 4
+    BRY_CURRENT = ReadADC10(1)*2.041/1023.0; // channel 5
     
-    BRY_AMP_HRS = pow(10,V_READ) * LOG_REG_X_COEF + LOG_REG_INTCPT;
+    BRY_AMP_HRS = pow(10.0,V_READ * LOG_REG_X_COEF + LOG_REG_INTCPT);
     
     V_READ = BRY_VOLTAGE / V_DIVIDER;
-    I_READ = BRY_CURRENT*10;
+    I_READ = BRY_CURRENT*10.0;
     AMP_HRS = BRY_AMP_HRS;
-    PCNT_BRY = 100* (V_READ / V_BRY_MAX) ;
+    PCNT_BRY = 100.0 * (V_READ / V_BRY_MAX) ;
     
     BRY_DATA[0] = V_READ;
     BRY_DATA[1] = I_READ;
@@ -237,7 +237,7 @@ int main(void)
             
             if (strncmp(comm_packet.data, "Q", 5) == 0){
                 // Got "Q"
-                mPORTBSetBits(BIT_14 | BIT_13 | BIT_9);
+                mPORTBSetBits(BIT_7 | BIT_8 | BIT_9 | BIT_13 | BIT_14);
                 
 //                ConfigIntTimer2(T2_INT_OFF | T2_INT_PRIOR_5);
                                 
